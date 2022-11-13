@@ -19,7 +19,7 @@ def compose_message(to, drawn, max_spend):
 
     #Setup the MIME
     message = EmailMessage()
-    message['From'] = "eth4n.hinton@gmail.com"
+    message['From'] = sender_address
     message['To'] = to.email
     message['Subject'] = 'A test mail sent by Python. It has an attachment.'   #The subject line
 
