@@ -5,7 +5,8 @@ from random import shuffle
 from credentials import sender_address, sender_pass
 
 def compose_message(to, drawn, max_spend):
-    mail_content = f'''<html>
+
+    mail_content = f"""<html>
     <head></head>
     <body>
         <p>Hello {to.name}!</p>
@@ -15,13 +16,12 @@ def compose_message(to, drawn, max_spend):
         </p>
     </body>
     </html>
-    '''
+    """
 
-    #Setup the MIME
     message = EmailMessage()
     message['From'] = sender_address
     message['To'] = to.email
-    message['Subject'] = 'A test mail sent by Python. It has an attachment.'   #The subject line
+    message['Subject'] = "FAMILY SECRET SANTA DRAW!"  #The subject line
 
     #The body and the attachments for the mail
     message.set_content(mail_content, 'html')
