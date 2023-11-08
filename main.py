@@ -10,7 +10,7 @@ def compose_message(to, drawn, max_spend):
     <head></head>
     <body>
         <p>Hello {to.name}!</p>
-        <p>The time has come to get into the Christmas spirit and draw names for the family Secret Santa! The maximum spend is <b>£{max_spend}</b> so please keep within this limit!
+        <p>The time has come to get into the Christmas spirit and draw names for the house Secret Santa! The maximum spend is <b>£{max_spend}</b> so please keep within this limit!
         <p>You have drawn <b>{drawn.name}</b>.
         <p>Let the elfing <b>BEGIN!</b>
         </p>
@@ -21,25 +21,31 @@ def compose_message(to, drawn, max_spend):
     message = EmailMessage()
     message['From'] = sender_address
     message['To'] = to.email
-    message['Subject'] = "FAMILY SECRET SANTA DRAW!"  #The subject line
+    message['Subject'] = "HOUSE 69 SECRET SANTA DRAW! (DO NOT REPLY)"  #The subject line
 
     #The body and the attachments for the mail
     message.set_content(mail_content, 'html')
 
     return message
 
-def draw_names(people):
+def draw_names(people, tries=0):
     people_sorted = sorted(people, key=lambda x: len(x.exclusions))
     hat = people.copy()
-    for person in people:
+    for person in people_sorted:
         shuffle(hat)
         for drawn in hat:
-            if (drawn != person) and (drawn.name not in person.exclusions):
+            if (drawn != person) and (drawn not in person.exclusions):
                 person.set_drawn_person(drawn)
                 hat.remove(drawn)
                 break
         if not person.drawn_person:
-            raise ValueError("Allocating drawn names is impossible due to exclusions!")
+            if tries > 100:
+                raise ValueError("Allocating drawn names is impossible due to exclusions!")
+            else:
+                for person in people:
+                    person.set_drawn_person(None)
+
+                draw_names(people, tries=(tries+1))
 
 
 def add_people():
@@ -127,7 +133,12 @@ def main():
 
     add_exceptions(people)
     price_limit = set_price_limit()
-    draw_names()
+    draw_names(people)
 
     send_dict = {person : compose_message(person, person.drawn_person, price_limit) for person in people}
+
     send_mail(send_dict, sender_address=sender_address, sender_pass=sender_pass)
+
+
+if __name__ == "__main__":
+    main()
