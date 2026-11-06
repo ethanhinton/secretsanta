@@ -1,1 +1,10 @@
-credentials.py
+.venv/
+__pycache__/
+*.pyc
+
+# Google OAuth — secrets and tokens, never commit these
+client_secret.json
+tokens.json
+
+# Local app state (contains the full draw — private!)
+data/

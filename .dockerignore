@@ -1,0 +1,10 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+data/
+tokens.json
+client_secret.json
+tests/
+Dockerfile
+.dockerignore
