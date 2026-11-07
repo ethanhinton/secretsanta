@@ -6,6 +6,8 @@ const $ = (s) => document.querySelector(s);
 let state = null;
 let settingsBound = false;
 let flashTimer = null;
+let drawCheck = null; // {feasible, reason} from /api/check-draw, or null while pending
+let checkSeq = 0;
 
 // ---------- plumbing ----------
 
@@ -30,6 +32,24 @@ async function api(path, opts = {}) {
 async function refresh() {
   state = await api("/api/state");
   render();
+  // While there's no draw yet, verify the setup can actually be drawn —
+  // the check runs the real matcher server-side and never commits.
+  if (!state.assignments && state.participants.length >= 2) {
+    drawCheck = null;
+    renderDraw();
+    checkDraw();
+  }
+}
+
+async function checkDraw() {
+  const seq = ++checkSeq;
+  try {
+    drawCheck = await api("/api/check-draw");
+  } catch (e) {
+    drawCheck = { feasible: false, reason: `Couldn't verify the setup: ${e.message}` };
+  }
+  if (seq !== checkSeq) return; // a newer check superseded this one
+  renderDraw();
 }
 
 function esc(s) {
@@ -92,6 +112,7 @@ function renderParticipants() {
     return;
   }
 
+  const byId = Object.fromEntries(state.participants.map((p) => [p.id, p]));
   list.innerHTML = "";
   for (const p of state.participants) {
     const row = document.createElement("div");
@@ -100,38 +121,70 @@ function renderParticipants() {
       `<span class="p-name" title="${esc(p.name)}">${esc(p.name)}</span>` +
       `<span class="p-email" title="${esc(p.email)}">${esc(p.email)}</span>`;
 
-    // Multi-select: people this person must NOT draw (must not give to).
+    // People this person CAN still draw — pick one to exclude it.
     const others = state.participants
-      .filter((q) => q.id !== p.id)
+      .filter((q) => q.id !== p.id && !p.exclusions.includes(q.id))
       .sort((a, b) => a.name.localeCompare(b.name));
     const sel = document.createElement("select");
-    sel.className = "excl";
-    sel.multiple = true;
-    sel.size = Math.min(4, others.length || 1);
-    sel.title = `People ${p.name} should NOT draw (Ctrl/Cmd-click for several)`;
+    sel.className = "excl-add";
+    sel.title = `People ${p.name} can still draw — pick one to exclude`;
+    const ph = document.createElement("option");
+    ph.value = "";
+    if (!others.length) {
+      ph.textContent = "Everyone excluded";
+    } else if (others.length === 1) {
+      ph.textContent = `Only ${others[0].name} left`;
+    } else {
+      ph.textContent = "Exclude…";
+    }
+    ph.disabled = true;
+    ph.selected = true;
+    sel.appendChild(ph);
     for (const q of others) {
       const opt = document.createElement("option");
       opt.value = q.id;
-      opt.textContent = q.name;
-      opt.selected = p.exclusions.includes(q.id);
+      if (others.length === 1) {
+        // Excluding them would leave p with nobody to draw — the server
+        // rejects that state too; just make it unselectable here.
+        opt.textContent = `${q.name} (can't exclude everyone)`;
+        opt.disabled = true;
+      } else {
+        opt.textContent = q.name;
+      }
       sel.appendChild(opt);
     }
-    sel.onchange = async () => {
-      const exclusions = [...sel.selectedOptions].map((o) => o.value);
-      try {
-        await api(`/api/participants/${p.id}`, {
-          method: "PUT",
-          body: JSON.stringify({ name: p.name, email: p.email, exclusions }),
-        });
-        await refresh();
-        flash(`Exclusions updated for ${p.name}` +
-          (state.assignments ? " — the old draw was cleared, draw again." : ""));
-      } catch (e) {
-        flash(e.message, true);
-        await refresh().catch(() => {});
-      }
+    sel.onchange = () => {
+      if (sel.value) saveExclusions(p, [...p.exclusions, sel.value]);
     };
     row.appendChild(sel);
+
+    // Excluded people, popped out to the side — ✕ puts them back.
+    const chips = document.createElement("div");
+    chips.className = "excl-chips";
+    const excluded = p.exclusions
+      .map((id) => byId[id])
+      .filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!excluded.length) {
+      chips.innerHTML = `<span class="muted small">none</span>`;
+    } else {
+      for (const q of excluded) {
+        const chip = document.createElement("span");
+        chip.className = "excl-chip";
+        chip.title = `${p.name} must not give a gift to ${q.name}`;
+        chip.textContent = q.name + " ";
+        const x = document.createElement("button");
+        x.className = "chip-x";
+        x.type = "button";
+        x.textContent = "✕";
+        x.title = `Allow ${q.name} again`;
+        x.setAttribute("aria-label", `Remove ${q.name} from ${p.name}'s exclusions`);
+        x.onclick = () => saveExclusions(p, p.exclusions.filter((id) => id !== q.id));
+        chip.appendChild(x);
+        chips.appendChild(chip);
+      }
+    }
+    row.appendChild(chips);
 
     const del = document.createElement("button");
     del.className = "ghost danger small";
@@ -148,6 +201,21 @@ function renderParticipants() {
     row.appendChild(del);
 
     list.appendChild(row);
+  }
+}
+
+// Persist a person's new exclusion list (add/remove a chip or dropdown pick).
+async function saveExclusions(p, exclusions) {
+  try {
+    await api(`/api/participants/${p.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name: p.name, email: p.email, exclusions }),
+    });
+    await refresh();
+    flash(`Exclusions updated for ${p.name}`);
+  } catch (e) {
+    flash(e.message, true);
+    await refresh().catch(() => {});
   }
 }
 
@@ -178,7 +246,16 @@ function renderSettings() {
   const s = state.settings;
   $("#set-subject").value = s.subject;
   $("#set-spend").value = s.max_spend;
-  $("#set-currency").value = s.currency;
+  const curSel = $("#set-currency");
+  // A pre-dropdown free-text value isn't in the list — keep it as an
+  // extra option rather than silently resetting the setting.
+  if (s.currency && ![...curSel.options].some((o) => o.value === s.currency)) {
+    const opt = document.createElement("option");
+    opt.value = s.currency;
+    opt.textContent = `${s.currency} (custom)`;
+    curSel.prepend(opt);
+  }
+  curSel.value = s.currency;
   $("#set-notes").value = s.notes;
   $("#set-norecip").checked = !!s.no_reciprocal;
 
@@ -194,8 +271,9 @@ function renderSettings() {
           no_reciprocal: $("#set-norecip").checked,
         }),
       });
-      state = await api("/api/state");
-      render();
+      // refresh() (not just re-render) so the draw-feasibility check runs
+      // again — the reciprocal-pair toggle is a draw constraint.
+      await refresh();
       flash("Email settings saved.");
     } catch (e) { flash(e.message, true); }
   };
@@ -216,7 +294,14 @@ function renderDraw() {
       actions.innerHTML = `<p class="muted">Add at least two participants to draw.</p>`;
       return;
     }
-    actions.innerHTML = `<button id="draw-btn" type="button">🎲 Draw names</button>`;
+    const blocked = !!(drawCheck && !drawCheck.feasible);
+    actions.innerHTML =
+      (blocked
+        ? `<p class="draw-warn">⚠️ ${esc(drawCheck.reason)}</p>`
+        : drawCheck === null
+          ? `<span class="muted small">Checking the setup…</span>`
+          : "") +
+      `<button id="draw-btn" type="button"${blocked ? " disabled title=\"Fix the exclusions problem above first\"" : ""}>🎲 Draw names</button>`;
     $("#draw-btn").onclick = async () => {
       try {
         await api("/api/draw", { method: "POST" });

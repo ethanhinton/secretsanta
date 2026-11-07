@@ -8,3 +8,8 @@ tokens.json
 
 # Local app state (contains the full draw — private!)
 data/
+
+# Local deploy files — your OAuth client ID / env, never commit these
+docker-compose.yml
+.env
+

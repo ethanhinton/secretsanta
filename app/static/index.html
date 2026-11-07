@@ -29,11 +29,30 @@
         <input id="set-subject" autocomplete="off">
       </label>
       <div class="row">
-        <label>Max spend
-          <input id="set-spend" class="narrow" inputmode="decimal" autocomplete="off">
-        </label>
         <label>Currency
-          <input id="set-currency" class="narrow2" autocomplete="off">
+          <select id="set-currency">
+            <option value="£">£ Pound (GBP)</option>
+            <option value="$">$ US Dollar (USD)</option>
+            <option value="€">€ Euro (EUR)</option>
+            <option value="¥">¥ Japanese Yen (JPY)</option>
+            <option value="₹">₹ Indian Rupee (INR)</option>
+            <option value="A$">A$ Australian Dollar (AUD)</option>
+            <option value="C$">C$ Canadian Dollar (CAD)</option>
+            <option value="S$">S$ Singapore Dollar (SGD)</option>
+            <option value="HK$">HK$ Hong Kong Dollar (HKD)</option>
+            <option value="CHF">CHF Swiss Franc (CHF)</option>
+            <option value="kr">kr Norwegian Krone (NOK)</option>
+            <option value="zł">zł Polish Złoty (PLN)</option>
+            <option value="R$">R$ Brazilian Real (BRL)</option>
+            <option value="₩">₩ South Korean Won (KRW)</option>
+            <option value="₺">₺ Turkish Lira (TRY)</option>
+            <option value="R">R South African Rand (ZAR)</option>
+            <option value="Ft">Ft Hungarian Forint (HUF)</option>
+            <option value="Kč">Kč Czech Koruna (CZK)</option>
+          </select>
+        </label>
+        <label>Max spend
+          <input id="set-spend" inputmode="decimal" autocomplete="off">
         </label>
       </div>
       <label>Extra notes <span class="muted small">(optional — e.g. "No vouchers!")</span>

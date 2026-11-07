@@ -102,7 +102,7 @@ button.small { padding: 4px 10px; font-size: 0.85rem; }
 
 .person-row {
   display: grid;
-  grid-template-columns: minmax(110px, 1fr) minmax(160px, 1.4fr) 170px 36px;
+  grid-template-columns: minmax(110px, 1fr) minmax(160px, 1.4fr) 150px minmax(160px, 1fr) 36px;
   gap: 10px;
   align-items: center;
   padding: 7px 0;
@@ -114,17 +114,56 @@ button.small { padding: 4px 10px; font-size: 0.85rem; }
 .p-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .p-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-select.excl {
+select {
   font: inherit;
-  font-size: 0.85rem;
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-  padding: 2px;
   color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 12px;
+  width: 100%;
 }
-select.excl option { padding: 2px 4px; }
+
+select.excl-add {
+  font-size: 0.85rem;
+  padding: 7px 10px;
+  border-radius: 8px;
+}
+
+/* Excluded names popped out to the side; ✕ puts them back. */
+.excl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.excl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #fdecec;
+  border: 1px solid #f3c8c8;
+  border-radius: 999px;
+  padding: 2px 3px 2px 10px;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.chip-x {
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--red);
+  padding: 0 7px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+button.chip-x:hover:not(:disabled) { background: #f6caca; }
 
 .add-row {
   display: grid;
@@ -159,7 +198,7 @@ textarea { resize: vertical; }
   color: var(--muted);
 }
 
-.card label input, .card label textarea { margin-top: 4px; }
+.card label input, .card label textarea, .card label select { margin-top: 4px; }
 
 .card label.check {
   display: flex;
@@ -175,8 +214,7 @@ textarea { resize: vertical; }
   gap: 12px;
 }
 
-input.narrow { max-width: 120px; }
-input.narrow2 { max-width: 80px; }
+
 
 /* ---------- draw & send ---------- */
 
@@ -216,6 +254,18 @@ table.preview th:first-child, table.preview td:first-child { width: 45%; }
 
 hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 
+/* "Setup can't be drawn" warning above the draw button */
+.draw-warn {
+  flex-basis: 100%;
+  margin: 0 0 2px;
+  background: #fdecec;
+  border: 1px solid #f3c8c8;
+  color: var(--red);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+}
+
 /* ---------- toast ---------- */
 
 .flash {
@@ -237,9 +287,8 @@ hr { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 @media (max-width: 640px) {
   .person-row {
     grid-template-columns: 1fr 36px;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto auto auto;
   }
-  .person-row select.excl { grid-column: 1 / -1; }
+  .person-row select.excl-add, .person-row .excl-chips { grid-column: 1 / -1; }
   .add-row, .row { grid-template-columns: 1fr; }
-  input.narrow, input.narrow2 { max-width: none; }
 }

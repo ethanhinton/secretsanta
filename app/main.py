@@ -58,6 +58,13 @@ def _find(state: AppState, pid: str) -> Participant:
     raise HTTPException(404, "Participant not found.")
 
 
+def _excludes_everyone(others: set, exclusions: list) -> bool:
+    """True if exclusions cover every other participant. That person would
+    have nobody left to draw — a state no valid draw can ever use, so we
+    refuse to create it rather than just warn about it later."""
+    return bool(others) and others <= set(exclusions)
+
+
 def _invalidate_draw(state: AppState) -> None:
     """Participant list / exclusions changed → the old draw is void."""
     state.assignments = None
@@ -138,11 +145,18 @@ def add_participant(body: ParticipantIn):
         if any(p.email.lower() == body.email.lower() for p in state.participants):
             raise HTTPException(409, "A participant with that email already exists.")
         valid_ids = {p.id for p in state.participants}
+        new_exclusions = [e for e in body.exclusions if e in valid_ids]
+        if _excludes_everyone(valid_ids, new_exclusions):
+            raise HTTPException(
+                400,
+                f"Can't exclude everyone for {body.name.strip()} — "
+                "they'd have nobody to draw.",
+            )
         p = Participant(
             id=new_id(),
             name=body.name.strip(),
             email=str(body.email),
-            exclusions=[e for e in body.exclusions if e in valid_ids],
+            exclusions=new_exclusions,
         )
         state.participants.append(p)
         _invalidate_draw(state)
@@ -164,6 +178,12 @@ def update_participant(pid: str, body: ParticipantIn):
             raise HTTPException(409, "Another participant already uses that email.")
         valid_ids = {q.id for q in state.participants} - {pid}
         new_exclusions = [e for e in body.exclusions if e in valid_ids]
+        if _excludes_everyone(valid_ids, new_exclusions):
+            raise HTTPException(
+                400,
+                f"{body.name.strip()} can't exclude everyone — "
+                "they'd have nobody to draw.",
+            )
         exclusions_changed = set(new_exclusions) != set(p.exclusions)
         p.name = body.name.strip()
         p.email = str(body.email)
@@ -211,6 +231,23 @@ def draw():
         state.send_errors = {}
         store.save_state(state)
     return _state_out(state)
+
+
+@app.get("/api/check-draw")
+def check_draw():
+    """Can a valid draw be made with the current participants/exclusions?
+
+    Runs the same matcher as /api/draw but commits nothing. The frontend
+    calls this after setup changes so it can warn (and disable the draw
+    button) before the user tries to draw.
+    """
+    with _state_lock:
+        state = store.load_state()
+    try:
+        draw_names(state.participants, state.settings.no_reciprocal)
+    except ValueError as e:
+        return {"feasible": False, "reason": str(e)}
+    return {"feasible": True, "reason": ""}
 
 
 @app.get("/auth/gmail/start")

@@ -104,8 +104,12 @@ recipients will see.
 
 ## Usage
 
-1. **Participants** — add name + email for everyone. Use the multi-select in
-   each row for "people X should not draw" (Ctrl/Cmd-click for several).
+1. **Participants** — add name + email for everyone. Pick a name in each
+   row's dropdown to mark "X should not draw that person"; excluded names
+   pop out to the side as chips — click ✕ on a chip to allow them again.
+   You can't exclude *everyone* for one person (no valid draw would be
+   possible), and whenever the current exclusions can't be drawn the
+   **Draw names** button is disabled with an explanation.
 2. **Email** — set the subject, max spend, currency and any notes; tick
    "avoid reciprocal pairs" if you want. Save.
 3. **Draw names** — the app assigns everyone a distinct recipient, respects

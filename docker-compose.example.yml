@@ -1,0 +1,26 @@
+# Example compose file — copy to docker-compose.yml and set your OAuth
+# client ID in a .env file, or inline below.
+#
+#   cp .env.example .env        # then edit .env
+#   docker compose up -d --build
+#
+# Then open http://localhost:8000.
+services:
+  secretsanta:
+    build: .
+    container_name: secretsanta
+    ports:
+      # Keep the host side at 8000 — see .env.example for why.
+      - "${HOST_PORT:-8000}:8000"
+    environment:
+      # OAuth client ID. Leave unset to use the bundled default
+      # (DEFAULT_CLIENT_ID in app/config.py).
+      GMAIL_OAUTH_CLIENT_ID: "${GMAIL_OAUTH_CLIENT_ID:-}"
+    volumes:
+      # state.json + tokens.json — keep this volume across container
+      # recreations, or the draw and Gmail authorisation are lost.
+      - secretsanta-data:/data
+    restart: unless-stopped
+
+volumes:
+  secretsanta-data:
