@@ -8,6 +8,11 @@ refresh token is stored in ``tokens.json`` (in the data directory). From
 then on the access token is refreshed silently in the background — no
 account password is ever needed or stored.
 
+The bundled client is normally a "Desktop app" (no secret). It also works
+with a "Web application" client, which has a secret: supply it via
+``GMAIL_OAUTH_CLIENT_SECRET`` so the token exchange can present it to
+Google (see ``_build_flow``).
+
 The authorisation is a standard web callback round-trip, which also works
 when the app runs in a Docker container (no browser or local port needed
 on the app side):
@@ -66,9 +71,10 @@ class GmailNotConnectedError(RuntimeError):
 def _config_message() -> str:
     return (
         "Gmail OAuth is not configured. Set the GMAIL_OAUTH_CLIENT_ID "
-        "environment variable, or set DEFAULT_CLIENT_ID in app/config.py — "
-        "a client ID of type 'Desktop app' (see README → 'OAuth client "
-        "setup')."
+        "environment variable, or set DEFAULT_CLIENT_ID in app/config.py. "
+        "Use a 'Desktop app' client (no secret), or a 'Web application' "
+        "client together with GMAIL_OAUTH_CLIENT_SECRET (see README → "
+        "'OAuth client setup')."
     )
 
 
@@ -91,13 +97,15 @@ def _callback_url() -> str:
 def _build_flow(autogenerate_code_verifier: bool = True) -> InstalledAppFlow:
     """Build the OAuth flow from the configured client ID (no JSON file).
 
-    The dict is Google's "client secrets" format; desktop-app clients have
-    no secret (``client_secret`` is "" by design).
+    The dict is Google's "client secrets" format. "Desktop app" clients have
+    no secret (``client_secret`` is ""), but "Web application" clients do —
+    in that case ``GMAIL_OAUTH_CLIENT_SECRET`` supplies it, and the token
+    exchange sends it to Google (see ``Flow.fetch_token``).
     """
     client_config = {
         "installed": {
             "client_id": config.gmail_client_id(),
-            "client_secret": "",
+            "client_secret": config.gmail_client_secret(),
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
@@ -162,8 +170,11 @@ def complete_connect(code: str, state: str) -> str:
         creds = flow.credentials
     except Exception as e:
         raise GmailAuthError(
-            f"Google rejected the sign-in ({e}). Check that the configured "
-            "client ID is a 'Desktop app' type client, and try again."
+            f"Google rejected the sign-in ({e}). Check that GMAIL_OAUTH_CLIENT_ID "
+            "and (for a 'Web application' client) GMAIL_OAUTH_CLIENT_SECRET "
+            "match your Google Cloud credentials, and that "
+            "http://localhost:<port>/auth/gmail/callback is a registered "
+            "authorized redirect URI for the client — then try again."
         ) from e
     if creds is None or not creds.token:
         raise GmailAuthError("Google did not return a token — try connecting again.")

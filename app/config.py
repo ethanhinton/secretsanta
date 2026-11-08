@@ -2,16 +2,19 @@
 
 Everything a deployer might want to tweak is read here, once at import:
 
-  GMAIL_OAUTH_CLIENT_ID  OAuth client ID to identify this app to Google
-                         ("Desktop app" type). Falls back to
-                         ``DEFAULT_CLIENT_ID`` below.
+  GMAIL_OAUTH_CLIENT_ID  OAuth client ID to identify this app to Google.
+                          Falls back to ``DEFAULT_CLIENT_ID`` below.
+  GMAIL_OAUTH_CLIENT_SECRET  OAuth client secret. Required when the client
+                          is a "Web application" type (Google rejects the
+                          token exchange without it); leave empty for
+                          "Desktop app" clients, which have no secret.
   PORT                   Port the server listens on. Also used to build
-                         the OAuth callback URL the user's browser lands
-                         on after signing in — so the *published* host
-                         port (Docker) must match this. Default 8000.
+                          the OAuth callback URL the user's browser lands
+                          on after signing in — so the *published* host
+                          port (Docker) must match this. Default 8000.
   SANTA_DATA_DIR         Directory holding ``state.json`` and
-                         ``tokens.json``. Default: <project root>/data.
-                         In Docker this is /data (mount a volume there).
+                          ``tokens.json``. Default: <project root>/data.
+                          In Docker this is /data (mount a volume there).
 """
 from __future__ import annotations
 
@@ -45,7 +48,8 @@ PORT = int(os.environ.get("PORT", "8000"))
 # After that, end users need no Google setup at all: they click
 # "Connect Gmail" and sign in with their own account.
 #
-# Deployers can override it per container with GMAIL_OAUTH_CLIENT_ID.
+# Deployers can override it per container with GMAIL_OAUTH_CLIENT_ID (and
+# GMAIL_OAUTH_CLIENT_SECRET, if using a "Web application" client).
 # ---------------------------------------------------------------------------
 DEFAULT_CLIENT_ID = "REPLACE_WITH_YOUR_DESKTOP_CLIENT_ID"
 
@@ -54,6 +58,16 @@ def gmail_client_id() -> str:
     """The client ID to use: env var wins, else the bundled default."""
     env = os.environ.get("GMAIL_OAUTH_CLIENT_ID", "").strip()
     return env or DEFAULT_CLIENT_ID
+
+
+def gmail_client_secret() -> str:
+    """The OAuth client secret, if any.
+
+    "Desktop app" clients have no secret (returns ""). "Web application"
+    clients do — set GMAIL_OAUTH_CLIENT_SECRET to its value, or Google
+    rejects the token exchange ("client secret missing").
+    """
+    return os.environ.get("GMAIL_OAUTH_CLIENT_SECRET", "").strip()
 
 
 def migrate_legacy_tokens() -> None:

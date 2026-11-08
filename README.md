@@ -80,6 +80,17 @@ As the *app author*, you set up the client once:
    - There is no client *secret* for desktop clients — the ID is a public
      identifier, safe to ship with the app.
 
+   > **Using a "Web application" client instead?** That type *does* have a
+   > client secret, and the app supports it too — but you must also:
+   > 1. register `http://localhost:8000/auth/gmail/callback` as an
+   >    *authorized redirect URI* on that client, and
+   > 2. set `GMAIL_OAUTH_CLIENT_SECRET` (e.g. in `docker-compose.yml` or
+   >    `.env`) to the secret — the value starting `GOCSPX-`.
+   >
+   > Without the secret, Google rejects the sign-in with a
+   > "client secret" error. Desktop clients need neither step, which is why
+   > they're the default.
+
 5. **Put the ID in the app** — one of:
    - paste it into `DEFAULT_CLIENT_ID` in `app/config.py` — baked in for
      everyone (the zero-config option), or
@@ -148,6 +159,10 @@ recipients will see.
 - **"Gmail OAuth is not configured"** — you haven't set a client ID yet:
   paste one into `DEFAULT_CLIENT_ID` in `app/config.py` or set
   `GMAIL_OAUTH_CLIENT_ID` (see "OAuth client setup").
+- **Sign-in fails with a "client secret" / `invalid_client` error** — your
+  client is a "Web application" type, so set `GMAIL_OAUTH_CLIENT_SECRET` to
+  its secret, and make sure `http://localhost:8000/auth/gmail/callback` is
+  a registered authorized redirect URI (see step 4 in "OAuth client setup").
 - **Authorisation fails with an access error** — your account isn't in the
   consent screen's *Test users* (or you're signed into a different Google
   account in the browser).
