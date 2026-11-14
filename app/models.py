@@ -38,6 +38,10 @@ class AppState:
     settings: DrawSettings = field(default_factory=DrawSettings)
     # giver_id -> recipient_id. None until a draw has been made.
     assignments: Optional[Dict[str, str]] = None
+    # If True, the UI never receives the assignments (the organizer doesn't
+    # want to see who draws who). Emails can still be sent — the server
+    # keeps the mapping, only the API stops returning it.
+    hide_assignments: bool = False
     # participant_id -> "pending" | "sending" | "sent" | "failed"
     send_status: Dict[str, str] = field(default_factory=dict)
     # participant_id -> last error message (only present for "failed")

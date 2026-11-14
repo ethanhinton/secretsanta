@@ -21,7 +21,7 @@ def build_email(to_name: str, drawn_name: str, settings: DrawSettings):
             f"<p>The maximum spend is <b>{currency}{html.escape(spend)}</b> "
             f"so please keep within this limit!</p>"
         )
-        spend_text = f"Maximum spend: {settings.currency}{spend}\n"
+        spend_text = f"The maximum spend is {settings.currency}{spend} so please keep within this limit!\n"
 
     notes_block = f"<p>{notes}</p>" if notes else ""
     notes_text = f"{settings.notes.strip()}\n" if notes else ""
@@ -43,8 +43,9 @@ def build_email(to_name: str, drawn_name: str, settings: DrawSettings):
 
     text_body = (
         f"Hello {to_name}!\n\n"
-        f"You have drawn {drawn_name}.\n"
+        f"The time has come to get into the Christmas spirit and draw names for the house Secret Santa!\n\n"
         f"{spend_text}"
+        f"You have drawn {drawn_name}.\n"
         f"{notes_text}"
         f"\nLet the elfing BEGIN!"
     )

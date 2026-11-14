@@ -62,11 +62,18 @@
         <input type="checkbox" id="set-norecip">
         Avoid reciprocal pairs (A draws B and B draws A)
       </label>
-      <button id="save-settings" type="button">Save email settings</button>
+      <div class="row">
+        <button id="save-settings" type="button">Save email settings</button>
+        <button id="preview-email" class="ghost" type="button">👁 Preview email</button>
+      </div>
     </section>
 
     <section class="card">
       <h2>Draw &amp; send</h2>
+      <label class="check" id="hide-draw-wrap" hidden>
+        <input type="checkbox" id="hide-draw">
+        Hide the draw from me — I don't want to see who draws who
+      </label>
       <div id="draw-actions" class="actions"></div>
       <div id="preview"></div>
       <div id="send-section" hidden>
@@ -83,6 +90,24 @@
   </footer>
 
   <div id="flash" class="flash" hidden></div>
+
+  <!-- Email preview modal -->
+  <div id="preview-modal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Email preview</h3>
+        <button id="preview-close" class="ghost small" type="button" aria-label="Close">✕</button>
+      </div>
+      <p class="muted small" id="preview-subject"></p>
+      <div class="tabs">
+        <button id="tab-html" class="tab active" type="button">HTML</button>
+        <button id="tab-text" class="tab" type="button">Plain text</button>
+      </div>
+      <div id="preview-html" class="preview-body"></div>
+      <pre id="preview-text" class="preview-body" hidden></pre>
+    </div>
+  </div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -32,6 +32,7 @@ checks that ``state`` against a cookie, to stop stray callbacks).
 from __future__ import annotations
 
 import base64
+import json
 import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -44,8 +45,15 @@ from googleapiclient.discovery import build
 
 from . import config
 
-# Narrowest useful scope: send mail, nothing else.
-SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+# Narrowest useful scope: send mail, nothing else. ``openid`` +
+# ``userinfo.email`` are added only so the app can learn *which* account
+# connected (from the ID token) — the gmail.send scope alone cannot call
+# users.getProfile.
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.send",
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
+]
 
 # How long an in-flight authorisation (start → callback) may take.
 AUTH_TTL_SECONDS = 600
@@ -183,15 +191,20 @@ def complete_connect(code: str, state: str) -> str:
     config.TOKENS_FILE.write_text(creds.to_json())
     config.TOKENS_FILE.chmod(0o600)
 
-    # Confirm the token actually works and learn which account it is.
-    service = build("gmail", "v1", credentials=creds)
-    try:
-        profile = service.users().getProfile().execute()
-    except Exception as e:
-        raise GmailAuthError(
-            f"Signed in, but Gmail could not be reached ({e})."
-        ) from e
-    return profile.get("emailAddress", "")
+    # Learn which account connected from the ID token (the gmail.send scope
+    # alone cannot call users.getProfile). The ID token is a JWT: the
+    # payload is the middle dot-separated segment, base64url-encoded JSON.
+    account = ""
+    id_token = getattr(creds, "id_token", None)
+    if id_token:
+        try:
+            payload = id_token.split(".")[1]
+            payload += "=" * (-len(payload) % 4)  # pad to a multiple of 4
+            claims = json.loads(base64.urlsafe_b64decode(payload))
+            account = claims.get("email", "")
+        except Exception:
+            account = ""
+    return account
 
 
 def _load_credentials() -> Optional[Credentials]:

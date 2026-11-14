@@ -16,6 +16,9 @@ services:
       # OAuth client ID. Leave unset to use the bundled default
       # (DEFAULT_CLIENT_ID in app/config.py).
       GMAIL_OAUTH_CLIENT_ID: "${GMAIL_OAUTH_CLIENT_ID:-}"
+      # OAuth client secret — ONLY needed for a "Web application" client
+      # (Google rejects the sign-in without it). Desktop clients have none.
+      GMAIL_OAUTH_CLIENT_SECRET: "${GMAIL_OAUTH_CLIENT_SECRET:-}"
     volumes:
       # state.json + tokens.json — keep this volume across container
       # recreations, or the draw and Gmail authorisation are lost.

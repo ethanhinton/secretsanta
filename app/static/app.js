@@ -34,7 +34,8 @@ async function refresh() {
   render();
   // While there's no draw yet, verify the setup can actually be drawn —
   // the check runs the real matcher server-side and never commits.
-  if (!state.assignments && state.participants.length >= 2) {
+  // (A hidden draw also reports assignments: null, so check the flag too.)
+  if (!state.assignments && !state.hide_assignments && state.participants.length >= 2) {
     drawCheck = null;
     renderDraw();
     checkDraw();
@@ -277,7 +278,59 @@ function renderSettings() {
       flash("Email settings saved.");
     } catch (e) { flash(e.message, true); }
   };
+
+  // Email preview — uses the current form values (even unsaved) so you can
+  // see exactly what would go out.
+  $("#preview-email").onclick = async () => {
+    try {
+      const res = await api("/api/email-preview", {
+        method: "POST",
+        body: JSON.stringify({
+          subject: $("#set-subject").value,
+          max_spend: $("#set-spend").value,
+          currency: $("#set-currency").value,
+          notes: $("#set-notes").value,
+        }),
+      });
+      showPreview(res);
+    } catch (e) { flash(e.message, true); }
+  };
 }
+
+function showPreview(res) {
+  $("#preview-subject").textContent = `Subject: ${res.subject}`;
+  $("#preview-html").innerHTML = res.html;
+  $("#preview-text").textContent = res.text;
+  $("#tab-html").classList.add("active");
+  $("#tab-text").classList.remove("active");
+  $("#preview-html").hidden = false;
+  $("#preview-text").hidden = true;
+  $("#preview-modal").hidden = false;
+}
+
+function closePreview() {
+  $("#preview-modal").hidden = true;
+}
+
+$("#preview-close").onclick = closePreview;
+$("#preview-modal").addEventListener("click", (ev) => {
+  if (ev.target === $("#preview-modal")) closePreview();
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && !$("#preview-modal").hidden) closePreview();
+});
+$("#tab-html").onclick = () => {
+  $("#tab-html").classList.add("active");
+  $("#tab-text").classList.remove("active");
+  $("#preview-html").hidden = false;
+  $("#preview-text").hidden = true;
+};
+$("#tab-text").onclick = () => {
+  $("#tab-text").classList.add("active");
+  $("#tab-html").classList.remove("active");
+  $("#preview-html").hidden = true;
+  $("#preview-text").hidden = false;
+};
 
 // ---------- draw & send ----------
 
@@ -287,7 +340,24 @@ function renderDraw() {
   const sendSection = $("#send-section");
   const n = state.participants.length;
 
-  if (!state.assignments) {
+  // The "hide the draw" toggle is only meaningful once a draw exists.
+  const hideWrap = $("#hide-draw-wrap");
+  const hideBox = $("#hide-draw");
+  const hasDraw = !!state.assignments || !!state.hide_assignments;
+  hideWrap.hidden = !hasDraw;
+  if (hideBox.checked !== !!state.hide_assignments) hideBox.checked = !!state.hide_assignments;
+  hideBox.onchange = async () => {
+    try {
+      await api("/api/draw/hide", {
+        method: "POST",
+        body: JSON.stringify({ hide: hideBox.checked }),
+      });
+      await refresh();
+      flash(hideBox.checked ? "Draw hidden — you won't see who draws who." : "Draw visible again.");
+    } catch (e) { flash(e.message, true); }
+  };
+
+  if (!hasDraw) {
     sendSection.hidden = true;
     preview.innerHTML = "";
     if (n < 2) {
@@ -314,18 +384,27 @@ function renderDraw() {
 
   // ---- assignments exist ----
   const byId = Object.fromEntries(state.participants.map((p) => [p.id, p]));
-  const entries = Object.entries(state.assignments)
+  const entries = Object.entries(state.assignments || {})
     .map(([giver, recipient]) => [byId[giver], byId[recipient]])
     .filter(([g, r]) => g && r)
     .sort((a, b) => a[0].name.localeCompare(b[0].name));
 
-  actions.innerHTML =
-    `<span class="muted">Draw complete — you can see below who draws who (keep it secret!).</span>` +
-    `<button id="redraw" class="ghost" type="button">Re-draw</button>`;
-  preview.innerHTML =
-    `<table class="preview"><thead><tr><th>Gives a gift to</th><th>Recipient</th></tr></thead><tbody>` +
-    entries.map(([g, r]) => `<tr><td>${esc(g.name)}</td><td>${esc(r.name)}</td></tr>`).join("") +
-    `</tbody></table>`;
+  if (state.hide_assignments) {
+    // The organizer chose not to see the draw. The server never sends the
+    // mapping, so there's nothing to render — just a note + re-draw.
+    actions.innerHTML =
+      `<span class="muted">Draw complete — results hidden.</span>` +
+      `<button id="redraw" class="ghost" type="button">Re-draw</button>`;
+    preview.innerHTML = "";
+  } else {
+    actions.innerHTML =
+      `<span class="muted">Draw complete — you can see below who draws who (keep it secret!).</span>` +
+      `<button id="redraw" class="ghost" type="button">Re-draw</button>`;
+    preview.innerHTML =
+      `<table class="preview"><thead><tr><th>Name</th><th>Gives a gift to</th></tr></thead><tbody>` +
+      entries.map(([g, r]) => `<tr><td>${esc(g.name)}</td><td>${esc(r.name)}</td></tr>`).join("") +
+      `</tbody></table>`;
+  }
 
   $("#redraw").onclick = async () => {
     const alreadySent = Object.values(state.send_status || {}).includes("sent");

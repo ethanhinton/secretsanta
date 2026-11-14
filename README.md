@@ -122,9 +122,14 @@ recipients will see.
    possible), and whenever the current exclusions can't be drawn the
    **Draw names** button is disabled with an explanation.
 2. **Email** — set the subject, max spend, currency and any notes; tick
-   "avoid reciprocal pairs" if you want. Save.
+   "avoid reciprocal pairs" if you want. Save. Click **👁 Preview email**
+   to see exactly what the email will look like (HTML and plain-text tabs)
+   — it reflects your current form values even before you save.
 3. **Draw names** — the app assigns everyone a distinct recipient, respects
-   the exclusions, and shows you a private preview.
+   the exclusions, and shows you a private preview. Tick **"Hide the draw
+   from me"** if you (the organizer) don't want to see who draws who — the
+   mapping stays on the server so emails can still be sent, but the results
+   are never shown in the UI or returned by the API.
 4. **Send emails** — one email per person, only revealing *their* assignment.
    Progress updates live; each email is recorded as sent/failed as it goes.
    If some fail, just click **Send emails** again — only the unsent/failed

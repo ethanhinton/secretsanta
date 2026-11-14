@@ -49,6 +49,18 @@ class SendIn(BaseModel):
     force: bool = False
 
 
+class EmailPreviewIn(BaseModel):
+    # Optional overrides so the preview reflects unsaved form values.
+    # None means "use the saved setting".
+    subject: Optional[str] = None
+    max_spend: Optional[str] = None
+    currency: Optional[str] = None
+    notes: Optional[str] = None
+    # Sample recipient names; defaults to Alice/Bob.
+    to_name: str = ""
+    drawn_name: str = ""
+
+
 # ---------- helpers ----------
 
 def _find(state: AppState, pid: str) -> Participant:
@@ -73,13 +85,18 @@ def _invalidate_draw(state: AppState) -> None:
 
 
 def _state_out(state: AppState) -> dict:
+    # When the organizer has hidden the draw, the assignments never leave
+    # the server — the browser can't see who draws who (and a peek at the
+    # API response won't reveal it either).
+    assignments = None if state.hide_assignments else state.assignments
     return {
         "participants": [
             {"id": p.id, "name": p.name, "email": p.email, "exclusions": p.exclusions}
             for p in state.participants
         ],
         "settings": state.settings.__dict__,
-        "assignments": state.assignments,
+        "assignments": assignments,
+        "hide_assignments": state.hide_assignments,
         "send_status": state.send_status,
         "send_errors": state.send_errors,
         "gmail_account": state.gmail_account,
@@ -216,6 +233,30 @@ def update_settings(body: SettingsIn):
     return _state_out(state)
 
 
+@app.post("/api/email-preview")
+def email_preview(body: EmailPreviewIn):
+    """Render the email as it would be sent, without sending anything.
+
+    Uses the saved settings, overridden by any values the caller passes
+    (so the preview can reflect unsaved form edits). Sample names default
+    to Alice/Bob when not given.
+    """
+    with _state_lock:
+        state = store.load_state()
+    s = state.settings
+    settings = DrawSettings(
+        subject=body.subject if body.subject is not None else s.subject,
+        max_spend=body.max_spend if body.max_spend is not None else s.max_spend,
+        currency=body.currency if body.currency is not None else s.currency,
+        notes=body.notes if body.notes is not None else s.notes,
+        no_reciprocal=s.no_reciprocal,
+    )
+    to_name = body.to_name.strip() or "Alice"
+    drawn_name = body.drawn_name.strip() or "Bob"
+    subject, html_body, text_body = build_email(to_name, drawn_name, settings)
+    return {"subject": subject, "html": html_body, "text": text_body}
+
+
 @app.post("/api/draw")
 def draw():
     with _state_lock:
@@ -229,6 +270,25 @@ def draw():
         state.assignments = assignments
         state.send_status = {}
         state.send_errors = {}
+        store.save_state(state)
+    return _state_out(state)
+
+
+class HideIn(BaseModel):
+    hide: bool
+
+
+@app.post("/api/draw/hide")
+def set_hide_assignments(body: HideIn):
+    """Toggle whether the UI shows the draw results.
+
+    When hidden, the assignments stay on the server (emails can still be
+    sent) but are never returned by the API — the organizer can't peek at
+    who draws who, keeping the surprise for themselves too.
+    """
+    with _state_lock:
+        state = store.load_state()
+        state.hide_assignments = body.hide
         store.save_state(state)
     return _state_out(state)
 
